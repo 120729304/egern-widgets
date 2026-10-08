@@ -1,0 +1,23 @@
+name: 流量圆环
+description: Komari 每台机器一个流量圆环（同心圆），显示已用/总量和使用率
+env_schema:
+  KOMARI_URL:
+    name: 面板地址
+    description: Komari 面板地址（单面板），如 https://xxxxxx
+    default_value: ''
+  KOMARI_URLS:
+    name: 多面板地址
+    description: 多个面板地址，用 | 或换行分隔（与面板地址二选一）
+    default_value: ''
+  REFRESH_MINUTES:
+    name: 刷新间隔（分钟）
+    description: 范围 10 ~ 180
+    default_value: '30'
+scriptings:
+- generic:
+    name: 流量圆环
+    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/traffic/traffic-widget.js
+    timeout: 30
+widgets:
+- name: 流量圆环
+  script_name: 流量圆环

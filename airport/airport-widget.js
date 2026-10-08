@@ -10,6 +10,8 @@
  *   REFRESH_MINUTES  刷新间隔（分钟），10 ~ 720，默认 60
  *   WARN_DAYS        到期提醒阈值（天），默认 7，剩余天数小于等于此值标红
  *   WARN_PCT         流量使用告警百分比，默认 90
+ *   USER_AGENT       请求订阅时用的 UA，默认 ClashMeta/1.18.0（有些机场只给 Clash/Stash 类客户端返回流量头）
+ *   DEBUG            填 1 开启调试，失败时在小组件里显示状态码和响应头名称
  */
 
 const C = {
@@ -153,6 +155,24 @@ function headerVal(headers, name) {
   return '';
 }
 
+/* 列出响应头名称（调试用） */
+function headerNames(headers) {
+  const names = [];
+  try {
+    if (!headers) return names;
+    if (typeof headers.keys === 'function') {
+      for (const k of headers.keys()) names.push(String(k));
+    } else if (Array.isArray(headers)) {
+      for (const p of headers) if (Array.isArray(p)) names.push(String(p[0]));
+    } else if (typeof headers === 'object') {
+      names.push(...Object.keys(headers));
+    }
+  } catch {
+    // 忽略
+  }
+  return names;
+}
+
 /* 解析 subscription-userinfo: upload=..; download=..; total=..; expire=.. */
 function parseUserInfo(str) {
   const s = String(str || '');
@@ -177,25 +197,36 @@ function usable(info) {
 }
 
 async function fetchSub(ctx, url) {
+  const ua = String(ctx.env?.USER_AGENT || 'ClashMeta/1.18.0');
+  const debug = String(ctx.env?.DEBUG || '').trim() === '1';
   const opt = {
     timeout: 15000,
     redirect: 'follow',
-    headers: { 'User-Agent': 'egern-airport/1.0' },
+    headers: { 'User-Agent': ua },
+  };
+  const notes = [];
+  const note = (s) => {
+    if (debug && notes.length < 8) notes.push(s);
   };
   let lastErr = null;
   // 先 HEAD（不下载正文），拿不到再 GET
   try {
     const resp = await ctx.http.head(url, opt);
+    note(`HEAD 状态 ${resp.status ?? '?'}`);
     const info = parseUserInfo(headerVal(resp.headers, 'subscription-userinfo'));
     if (usable(info)) return info;
+    note(`HEAD 响应头：${headerNames(resp.headers).join(', ') || '无'}`);
   } catch (e) {
     lastErr = e;
+    note(`HEAD 异常：${String((e && e.message) || e).slice(0, 40)}`);
   }
   let resp;
   try {
     resp = await ctx.http.get(url, opt);
+    note(`GET 状态 ${resp.status ?? '?'}`);
   } catch (e) {
-    throw new Error(`请求订阅失败：${String((e && e.message) || e).slice(0, 80)}`);
+    const msg = `请求订阅失败：${String((e && e.message) || e).slice(0, 80)}`;
+    throw new Error(debug ? `${msg} [${notes.join('；')}]` : msg);
   }
   // 有些面板把流量信息放在正文里，顺带解析一下
   let text = '';
@@ -205,9 +236,15 @@ async function fetchSub(ctx, url) {
     // 忽略
   }
   let info = parseUserInfo(headerVal(resp.headers, 'subscription-userinfo'));
-  if (!usable(info)) info = parseUserInfo(text.slice(0, 2000));
   if (!usable(info)) {
-    throw new Error(lastErr ? `HEAD/GET 均失败：${String((lastErr.message) || lastErr).slice(0, 60)}` : '订阅未返回流量信息（无 subscription-userinfo 响应头）');
+    note(`GET 响应头：${headerNames(resp.headers).join(', ') || '无'}`);
+    info = parseUserInfo(text.slice(0, 2000));
+  }
+  if (!usable(info)) {
+    const base = lastErr
+      ? `HEAD/GET 均失败：${String(lastErr.message || lastErr).slice(0, 60)}`
+      : '订阅未返回流量信息（无 subscription-userinfo 响应头）';
+    throw new Error(debug ? `${base} [${notes.join('；')}]` : base);
   }
   return info;
 }
@@ -395,6 +432,7 @@ export default async function (ctx) {
   const warnDays = Number.isFinite(wd) && wd >= 0 ? wd : 7;
   const wp = parseFloat(ctx.env?.WARN_PCT);
   const warnPct = Number.isFinite(wp) && wp > 0 && wp <= 100 ? wp : 90;
+  const debugOn = String(ctx.env?.DEBUG || '').trim() === '1';
 
   const entries = subList(ctx);
   if (!entries.length) {
@@ -407,7 +445,9 @@ export default async function (ctx) {
         const info = await fetchSub(ctx, e.url);
         return { ok: true, sub: buildInfo(e, info) };
       } catch (err) {
-        return { ok: false, name: e.name || hostOf(e.url), error: String((err && err.message) || err).slice(0, 60) };
+        const debug = String(ctx.env?.DEBUG || '').trim() === '1';
+        const msg = String((err && err.message) || err);
+        return { ok: false, name: e.name || hostOf(e.url), error: msg.slice(0, debug ? 400 : 60) };
       }
     })
   );
@@ -454,7 +494,9 @@ export default async function (ctx) {
     if (list.length > shown.length) {
       children.push(T(`还有 ${list.length - shown.length} 个订阅`, 11, C.dim, 'regular'));
     }
-    failed.forEach((f) => children.push(T(`${f.name}：${f.error}`, 11, C.bad, 'regular')));
+    failed.forEach((f) =>
+      children.push(T(`${f.name}：${f.error}`, 11, C.bad, 'regular', { maxLines: debugOn ? 5 : 1 })));
+
     children.push({ type: 'spacer' });
     return {
       type: 'widget',
@@ -473,7 +515,9 @@ export default async function (ctx) {
   if (list.length > shown.length) {
     children.push(T(`还有 ${list.length - shown.length} 个订阅，大尺寸查看`, 11, C.dim, 'regular'));
   }
-  failed.forEach((f) => children.push(T(`${f.name}：${f.error}`, 11, C.bad, 'regular')));
+  failed.forEach((f) =>
+      children.push(T(`${f.name}：${f.error}`, 11, C.bad, 'regular', { maxLines: debugOn ? 5 : 1 })));
+
   children.push({ type: 'spacer' });
   return {
     type: 'widget',

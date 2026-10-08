@@ -1,8 +1,8 @@
 /**
- * Egern 小组件：Komari 流量圆环 v1
+ * Egern 小组件：Komari 流量圆环 v1.1
  *
- * 读取每台机器的总流量和已用流量，一台机器一个圆环（同心圆从外到内按 1~N 排列），
- * 右侧列表显示每台的已用/总量和使用率。
+ * 读取每台机器的总流量和已用流量，一台机器一条跑道（赛车跑道式椭圆，
+ * 从外到内按 1~N 排列），大尺寸上下布局：上面跑道、下面机器列表。
  *
  * Env：
  *   KOMARI_URL        Komari 面板地址（单面板），如 https://xxxxxx
@@ -51,7 +51,45 @@ function svgUri(svg) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
-/* 同心圆环：items 按顺序从外到内，{pct: 0~1 或 null(不限量只画轨道), color} */
+/* 赛车跑道式椭圆：items 按顺序从外到内，{pct: 0~1 或 null(不限量只画轨道), color} */
+function stadiumPath(cx, cy, a, r) {
+  const f = (x) => x.toFixed(1);
+  return (
+    `M ${f(cx)} ${f(cy - r)} L ${f(cx + a)} ${f(cy - r)} ` +
+    `A ${f(r)} ${f(r)} 0 0 1 ${f(cx + a)} ${f(cy + r)} ` +
+    `L ${f(cx - a)} ${f(cy + r)} A ${f(r)} ${f(r)} 0 0 1 ${f(cx - a)} ${f(cy - r)} Z`
+  );
+}
+
+function trackSvg(items, w, h) {
+  const n = Math.max(1, items.length);
+  const sw = Math.max(5, Math.min(11, Math.floor(Math.min(w, h) / (n * 2.6))));
+  const gap = Math.max(2, Math.floor(sw / 3));
+  const step = sw + gap;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r0 = h / 2 - sw / 2 - 1;
+  const a0 = Math.max(0, w / 2 - r0 - sw / 2 - 1);
+  let paths = '';
+  items.forEach((it, i) => {
+    const r = r0 - i * step;
+    const a = Math.max(0, a0 - i * step * 0.8);
+    if (r <= sw / 2) return;
+    const d = stadiumPath(cx, cy, a, r);
+    paths += `<path d="${d}" fill="none" stroke="${C.barTrack}" stroke-width="${sw}" pathLength="100"/>`;
+    const p = it.pct == null ? 0 : Math.max(0, Math.min(1, it.pct));
+    if (p > 0) {
+      paths +=
+        `<path d="${d}" fill="none" stroke="${it.color}" stroke-width="${sw}" ` +
+        `stroke-linecap="round" pathLength="100" stroke-dasharray="${(p * 100).toFixed(1)} 100"/>`;
+    }
+  });
+  return svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${paths}</svg>`
+  );
+}
+
+/* 同心圆环（锁屏圆形小组件用）：items 按顺序从外到内 */
 function ringsSvg(items, size) {
   const n = Math.max(1, items.length);
   const sw = Math.max(5, Math.min(12, Math.floor(size / (n * 3.4))));
@@ -366,37 +404,23 @@ export default async function (ctx) {
         head('流量圆环'),
         { type: 'spacer' },
         {
-          type: 'stack',
-          direction: 'row',
-          alignItems: 'center',
-          gap: 10,
-          children: [
-            {
-              type: 'image',
-              src: ringsSvg([{ pct: s.pct == null ? 0 : s.pct / 100, color: s.color }], 84),
-              width: 84,
-              height: 84,
-            },
-            {
-              type: 'stack',
-              direction: 'column',
-              alignItems: 'start',
-              gap: 3,
-              children: [
-                T(s.name, 14, C.text, 'semibold'),
-                T(s.pct == null ? '不限量' : `${s.pct.toFixed(1)}%`, 24, pctColor(s.pct), 'bold'),
-                T(`已用 ${fmtBytes(s.used)}${s.unlimited ? '' : ` / ${fmtBytes(s.limit)}`}`, 12, C.dim, 'regular'),
-              ],
-            },
-          ],
+          type: 'image',
+          src: trackSvg([{ pct: s.pct == null ? 0 : s.pct / 100, color: s.color }], 150, 62),
+          width: 150,
+          height: 62,
         },
+        T(s.name, 14, C.text, 'semibold', { textAlign: 'center' }),
+        T(s.pct == null ? '不限量' : `${s.pct.toFixed(1)}%`, 24, pctColor(s.pct), 'bold', { textAlign: 'center' }),
+        T(`已用 ${fmtBytes(s.used)}${s.unlimited ? '' : ` / ${fmtBytes(s.limit)}`}`, 12, C.dim, 'regular', { textAlign: 'center' }),
         { type: 'spacer' },
       ],
     };
   }
 
-  // systemMedium：圆环 + 最多 4 台
-  const mkBody = (maxNodes, ringSize) => {
+  const trackItems = (arr) => arr.map((s) => ({ pct: s.pct == null ? 0 : s.pct / 100, color: s.color }));
+
+  // systemMedium：左跑道 + 右列表，最多 4 台
+  const mkSideBody = (maxNodes) => {
     const shown = list.slice(0, maxNodes);
     const rows = shown.map(listRow);
     if (list.length > shown.length) {
@@ -417,9 +441,9 @@ export default async function (ctx) {
           children: [
             {
               type: 'image',
-              src: ringsSvg(shown.map((s) => ({ pct: s.pct == null ? 0 : s.pct / 100, color: s.color })), ringSize),
-              width: ringSize,
-              height: ringSize,
+              src: trackSvg(trackItems(shown), 140, 92),
+              width: 140,
+              height: 92,
             },
             T(`总已用 ${fmtBytes(totalUsed)}`, 11, C.dim, 'regular'),
           ],
@@ -435,6 +459,38 @@ export default async function (ctx) {
     };
   };
 
+  // systemLarge：上下布局，上面跑道、下面机器列表
+  const mkTopBody = (maxNodes) => {
+    const shown = list.slice(0, maxNodes);
+    const rows = shown.map(listRow);
+    if (list.length > shown.length) {
+      rows.push(T(`还有 ${list.length - shown.length} 台`, 11, C.dim, 'regular'));
+    }
+    errors.forEach((e) => rows.push(T(e, 11, C.bad, 'regular')));
+    return {
+      type: 'stack',
+      direction: 'column',
+      alignItems: 'center',
+      gap: 8,
+      children: [
+        {
+          type: 'image',
+          src: trackSvg(trackItems(shown), 310, 112),
+          width: 310,
+          height: 112,
+        },
+        T(`总已用 ${fmtBytes(totalUsed)}`, 11, C.dim, 'regular'),
+        {
+          type: 'stack',
+          direction: 'column',
+          alignItems: 'start',
+          gap: 6,
+          children: rows,
+        },
+      ],
+    };
+  };
+
   if (family === 'systemLarge' || family === 'systemExtraLarge') {
     return {
       type: 'widget',
@@ -442,7 +498,7 @@ export default async function (ctx) {
       gap: 10,
       backgroundGradient: bg(),
       refreshAfter: refreshAt(ctx),
-      children: [head('流量圆环'), mkBody(8, 150), { type: 'spacer' }],
+      children: [head('流量圆环'), mkTopBody(8), { type: 'spacer' }],
     };
   }
 
@@ -453,6 +509,6 @@ export default async function (ctx) {
     gap: 10,
     backgroundGradient: bg(),
     refreshAfter: refreshAt(ctx),
-    children: [head('流量圆环'), mkBody(4, 110), { type: 'spacer' }],
+    children: [head('流量圆环'), mkSideBody(4), { type: 'spacer' }],
   };
 }

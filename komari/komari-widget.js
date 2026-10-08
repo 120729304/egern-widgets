@@ -668,7 +668,7 @@ export default async function (ctx) {
     return {
       type: 'widget',
       padding: 14,
-      gap: compact ? 3 : 4,
+      gap: 2,
       backgroundGradient: bg(),
       refreshAfter: refreshAt(ctx),
       children: [headerRow('Komari 探针', head), ...rows, { type: 'spacer' }],

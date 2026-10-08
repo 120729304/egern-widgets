@@ -1,0 +1,23 @@
+name: 天气
+description: 显示指定城市的当前天气、逐小时和未来 3 天预报（Open-Meteo 数据源，免费无需 key）
+env_schema:
+  LOCATION:
+    name: 城市
+    description: 城市名（如 青岛）、"城市,省份"（如 青岛,山东）或 "纬度,经度"（如 36.07,120.38）
+    default_value: '青岛'
+  REFRESH_MINUTES:
+    name: 刷新间隔（分钟）
+    description: 范围 10 ~ 180
+    default_value: '30'
+  TEMP_UNIT:
+    name: 温度单位
+    description: c 摄氏，f 华氏
+    default_value: 'c'
+scriptings:
+- generic:
+    name: 天气
+    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/weather/weather-widget.js
+    timeout: 30
+widgets:
+- name: 天气
+  script_name: 天气

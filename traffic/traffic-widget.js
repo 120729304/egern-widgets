@@ -76,12 +76,14 @@ function trackSvg(items, w, h) {
     const a = Math.max(0, a0 - i * step * 0.8);
     if (r <= sw / 2) return;
     const d = stadiumPath(cx, cy, a, r);
-    paths += `<path d="${d}" fill="none" stroke="${C.barTrack}" stroke-width="${sw}" pathLength="100"/>`;
+    // 跑道周长：两条直道 + 一个整圆（不用 pathLength，Egern 渲染不支持）
+    const perim = 4 * a + 2 * Math.PI * r;
+    paths += `<path d="${d}" fill="none" stroke="${C.barTrack}" stroke-width="${sw}"/>`;
     const p = it.pct == null ? 0 : Math.max(0, Math.min(1, it.pct));
     if (p > 0) {
       paths +=
         `<path d="${d}" fill="none" stroke="${it.color}" stroke-width="${sw}" ` +
-        `stroke-linecap="round" pathLength="100" stroke-dasharray="${(p * 100).toFixed(1)} 100"/>`;
+        `stroke-linecap="round" stroke-dasharray="${(perim * p).toFixed(1)} ${perim.toFixed(1)}"/>`;
     }
   });
   return svgUri(
@@ -306,7 +308,8 @@ function listRow(s) {
     gap: 6,
     children: [
       dot(s.color),
-      T(s.name, 13, C.text, 'semibold'),
+      // 名字超长截断，不缩小，保证每行字号一致
+      T(s.name, 13, C.text, 'semibold', { minScale: 1 }),
       { type: 'spacer' },
       T(right, 12, C.dim, 'regular'),
       T(s.pct == null ? '--' : `${s.pct.toFixed(0)}%`, 13, pctColor(s.pct), 'semibold'),

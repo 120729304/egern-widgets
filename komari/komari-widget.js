@@ -427,7 +427,7 @@ function nodeRow(s, barW) {
           ],
         },
         { type: 'spacer' },
-        T(s.region, 24, C.dim, 'regular'),
+        T(s.region, 22, C.dim, 'regular'),
       ],
     },
     {

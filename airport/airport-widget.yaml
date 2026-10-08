@@ -17,6 +17,14 @@ env_schema:
     name: 流量告警百分比
     description: 使用率达到此值时标红，默认 90
     default_value: '90'
+  USER_AGENT:
+    name: 请求 UA
+    description: 有些机场只给 Clash/Stash 类客户端返回流量头，默认 ClashMeta/1.18.0
+    default_value: 'ClashMeta/1.18.0'
+  DEBUG:
+    name: 调试模式
+    description: 填 1 开启，失败时显示状态码和响应头名称
+    default_value: ''
 scriptings:
 - generic:
     name: 机场流量

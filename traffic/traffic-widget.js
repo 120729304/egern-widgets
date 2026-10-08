@@ -51,15 +51,7 @@ function svgUri(svg) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
-function hexA(hex, alpha) {
-  const h = String(hex).replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-/* 赛车跑道式椭圆：items 按顺序从外到内，{pct: 0~1 或 null(不限量淡彩轨道), color} */
+/* 赛车跑道式椭圆：items 按顺序从外到内，{pct: 0~1 或 null(不限量整圈实色), color} */
 function stadiumPath(cx, cy, a, r) {
   const f = (x) => x.toFixed(1);
   return (
@@ -89,7 +81,7 @@ function trackSvg(items, w, h) {
     // 跑道周长：两条直道 + 一个整圆（不用 pathLength，Egern 渲染不支持）
     const perim = 4 * a + 2 * Math.PI * r;
     const unlimited = it.pct == null;
-    const trackColor = unlimited ? hexA(it.color, 0.38) : C.barTrack;
+    const trackColor = unlimited ? it.color : C.barTrack;
     paths += `<path d="${d}" fill="none" stroke="${trackColor}" stroke-width="${sw}"/>`;
     const p = unlimited ? 0 : Math.max(0, Math.min(1, it.pct));
     if (p > 0) {

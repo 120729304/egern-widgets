@@ -1,0 +1,35 @@
+name: Komari 探针监控
+description: 显示 Komari 面板所有探针的在线状态、延迟（各 ping 任务）和流量总量/使用量
+env_schema:
+  KOMARI_URL:
+    name: 面板地址
+    description: Komari 面板地址（必填），如 https://xxxxxx
+    default_value: 'https://xxxxxx'
+  KOMARI_URLS:
+    name: 多面板地址
+    description: 多个面板用 | 或换行分隔，如 https://a.com|https://b.com，留空则用上面的面板地址
+    default_value: ''
+  EXPIRE_WARN_DAYS:
+    name: 到期提醒阈值（天）
+    description: 服务器剩余天数小于等于此值时标红提醒，默认 14
+    default_value: '14'
+  REFRESH_HOURS:
+    name: 刷新间隔（小时）
+    description: 范围 0.5 ~ 24
+    default_value: '1'
+  MAX_NODES:
+    name: 中尺寸最多显示节点数
+    description: systemMedium 小组件最多显示的节点数，大尺寸显示全部
+    default_value: '4'
+  COMPACT_THRESHOLD:
+    name: 紧凑模式阈值
+    description: 大尺寸下节点数超过此值时自动切换单行紧凑模式，默认 8
+    default_value: '8'
+scriptings:
+- generic:
+    name: Komari探针监控
+    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/komari/komari-widget.js
+    timeout: 30
+widgets:
+- name: Komari探针监控
+  script_name: Komari探针监控

@@ -215,6 +215,10 @@ async function tryCookie(ctx, cookie, settings) {
     if (cached?.fee?.number) ds.fee = cached.fee;
   }
   ctx.storage.setJSON('ct_datasource', ds);
+  // 多存一份原始接口数据：缓存兜底时按当前 Env 设置重新解析，避免旧缓存里的标题/数值跟新设置对不上
+  try {
+    ctx.storage.setJSON('ct_raw', { detail, balance, at: ds.updatedAt || Date.now() });
+  } catch (_) {}
   return ds;
 }
 
@@ -254,7 +258,17 @@ async function loadData(ctx) {
     }
   }
 
-  // 3) 断网/过期时用缓存顶一下
+  // 3) 断网/过期时用缓存顶一下：有原始数据就按当前设置重新解析一次
+  const raw = ctx.storage.getJSON('ct_raw');
+  if (raw && raw.detail) {
+    try {
+      const ds = parseTelecom(raw.detail, raw.balance, settings);
+      ds.updatedAt = raw.at || ds.updatedAt;
+      return { configured, ds, fromCache: true };
+    } catch (_) {
+      /* 解析失败就掉到旧缓存 */
+    }
+  }
   const cached = ctx.storage.getJSON('ct_datasource');
   return { configured, ds: cached || null, fromCache: !!cached };
 }

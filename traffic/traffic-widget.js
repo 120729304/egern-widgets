@@ -51,7 +51,15 @@ function svgUri(svg) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
-/* 赛车跑道式椭圆：items 按顺序从外到内，{pct: 0~1 或 null(不限量只画轨道), color} */
+function hexA(hex, alpha) {
+  const h = String(hex).replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/* 赛车跑道式椭圆：items 按顺序从外到内，{pct: 0~1 或 null(不限量淡彩轨道), color} */
 function stadiumPath(cx, cy, a, r) {
   const f = (x) => x.toFixed(1);
   return (
@@ -63,8 +71,10 @@ function stadiumPath(cx, cy, a, r) {
 
 function trackSvg(items, w, h) {
   const n = Math.max(1, items.length);
-  const sw = Math.max(5, Math.min(11, Math.floor(Math.min(w, h) / (n * 2.6))));
-  const gap = Math.max(2, Math.floor(sw / 3));
+  const sw = Math.max(4, Math.min(7, Math.floor(Math.min(w, h) / (n * 3.2))));
+  // 间距尽量大，但要保证所有圈都放得下：(n-1)*step <= h/2 - sw - 2
+  const maxStep = (h / 2 - sw - 2) / Math.max(1, n - 1);
+  const gap = Math.max(1.5, Math.min(sw * 0.7, maxStep - sw));
   const step = sw + gap;
   const cx = w / 2;
   const cy = h / 2;
@@ -78,8 +88,10 @@ function trackSvg(items, w, h) {
     const d = stadiumPath(cx, cy, a, r);
     // 跑道周长：两条直道 + 一个整圆（不用 pathLength，Egern 渲染不支持）
     const perim = 4 * a + 2 * Math.PI * r;
-    paths += `<path d="${d}" fill="none" stroke="${C.barTrack}" stroke-width="${sw}"/>`;
-    const p = it.pct == null ? 0 : Math.max(0, Math.min(1, it.pct));
+    const unlimited = it.pct == null;
+    const trackColor = unlimited ? hexA(it.color, 0.38) : C.barTrack;
+    paths += `<path d="${d}" fill="none" stroke="${trackColor}" stroke-width="${sw}"/>`;
+    const p = unlimited ? 0 : Math.max(0, Math.min(1, it.pct));
     if (p > 0) {
       paths +=
         `<path d="${d}" fill="none" stroke="${it.color}" stroke-width="${sw}" ` +
@@ -478,9 +490,9 @@ export default async function (ctx) {
       children: [
         {
           type: 'image',
-          src: trackSvg(trackItems(shown), 310, 112),
+          src: trackSvg(trackItems(shown), 310, 140),
           width: 310,
-          height: 112,
+          height: 140,
         },
         T(`总已用 ${fmtBytes(totalUsed)}`, 11, C.dim, 'regular'),
         {

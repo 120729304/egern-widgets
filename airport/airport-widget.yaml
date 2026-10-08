@@ -1,0 +1,27 @@
+name: 机场流量
+description: 从机场订阅链接的 subscription-userinfo 响应头读取流量使用和到期时间，支持多个订阅
+env_schema:
+  SUB_URLS:
+    name: 订阅链接
+    description: 机场订阅链接（必填），多个用 | 或换行分隔；可用「名字=链接」命名，如 我的机场=https://sub.xxx/abc
+    default_value: ''
+  REFRESH_MINUTES:
+    name: 刷新间隔（分钟）
+    description: 范围 10 ~ 720
+    default_value: '60'
+  WARN_DAYS:
+    name: 到期提醒阈值（天）
+    description: 剩余天数小于等于此值时标红提醒，默认 7
+    default_value: '7'
+  WARN_PCT:
+    name: 流量告警百分比
+    description: 使用率达到此值时标红，默认 90
+    default_value: '90'
+scriptings:
+- generic:
+    name: 机场流量
+    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/airport/airport-widget.js
+    timeout: 30
+widgets:
+- name: 机场流量
+  script_name: 机场流量

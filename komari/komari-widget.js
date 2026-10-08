@@ -413,11 +413,19 @@ function nodeRow(s, barW) {
     {
       type: 'stack',
       direction: 'row',
-      alignItems: 'center',
+      alignItems: 'end',
       gap: 5,
       children: [
-        dot(s.online ? C.ok : C.bad),
-        T(s.name, 14, C.text, 'semibold'),
+        {
+          type: 'stack',
+          direction: 'row',
+          alignItems: 'center',
+          gap: 5,
+          children: [
+            dot(s.online ? C.ok : C.bad),
+            T(s.name, 14, C.text, 'semibold'),
+          ],
+        },
         { type: 'spacer' },
         T(s.region, 28, C.dim, 'regular'),
       ],

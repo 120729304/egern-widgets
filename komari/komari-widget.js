@@ -419,7 +419,7 @@ function nodeRow(s, barW) {
         dot(s.online ? C.ok : C.bad),
         T(s.name, 14, C.text, 'semibold'),
         { type: 'spacer' },
-        T(s.region, 24, C.dim, 'regular'),
+        T(s.region, 28, C.dim, 'regular'),
       ],
     },
     {

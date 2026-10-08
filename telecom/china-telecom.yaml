@@ -1,0 +1,35 @@
+name: 中国电信
+description: 电信话费/流量/语音小组件（改版：语音显示独立开关，默认显示剩余语音）。原脚本 SIJULY/egern-radar，移植自 Scriptable 版 ChinaTelecom_2024（2Ya&脑瓜）
+env_schema:
+  CT_LOGIN_URL:
+    name: 电信登录地址
+    description: 抓包得到的登录 URL，用于自动更新 cookie（与 CT_COOKIE 二选一，URL 优先）
+    default_value: ''
+  CT_COOKIE:
+    name: Cookie
+    description: 直接填写 cookie（与 CT_LOGIN_URL 二选一）
+    default_value: ''
+  CT_SHOW_USED_FLOW:
+    name: 显示已用流量
+    description: 填 true 显示已用流量，不填显示剩余流量
+    default_value: ''
+  CT_SHOW_USED_VOICE:
+    name: 显示已用语音
+    description: 填 true 显示已用语音，不填显示剩余语音（不受上一项影响）
+    default_value: ''
+  CT_SHOW_DIRECT:
+    name: 定向卡显示
+    description: false 隐藏定向卡（3卡模式）；true 强制4卡；不填自动判断
+    default_value: ''
+  CT_TITLE:
+    name: 小组件标题
+    description: 默认 中国电信
+    default_value: ''
+scriptings:
+- generic:
+    name: 中国电信
+    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/telecom/china-telecom.js
+    timeout: 30
+widgets:
+- name: 中国电信
+  script_name: 中国电信

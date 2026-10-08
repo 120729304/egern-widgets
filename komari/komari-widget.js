@@ -427,7 +427,7 @@ function nodeRow(s, barW) {
           ],
         },
         { type: 'spacer' },
-        T(s.region, 18, C.dim, 'regular'),
+        T(s.region, 14, C.dim, 'regular'),
       ],
     },
     {
@@ -668,7 +668,7 @@ export default async function (ctx) {
     return {
       type: 'widget',
       padding: 14,
-      gap: 0.3,
+      gap: 0.2,
       backgroundGradient: bg(),
       refreshAfter: refreshAt(ctx),
       children: [headerRow('Komari 探针', head), ...rows, { type: 'spacer' }],

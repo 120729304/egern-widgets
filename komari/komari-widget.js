@@ -453,7 +453,7 @@ function nodeRow(s, barW) {
       height: 4,
     });
   }
-  return { type: 'stack', direction: 'column', alignItems: 'start', gap: 3, children };
+  return { type: 'stack', direction: 'column', alignItems: 'start', gap: 2, children };
 }
 
 /* 节点太多时用的单行紧凑模式 */
@@ -660,7 +660,7 @@ export default async function (ctx) {
     return {
       type: 'widget',
       padding: 14,
-      gap: compact ? 4 : 6,
+      gap: compact ? 3 : 4,
       backgroundGradient: bg(),
       refreshAfter: refreshAt(ctx),
       children: [headerRow('Komari 探针', head), ...rows, { type: 'spacer' }],

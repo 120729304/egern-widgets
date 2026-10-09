@@ -1,0 +1,19 @@
+name: 无聊按钮
+description: 不知道干啥时看一眼，随机派个活，分时段推荐，每次刷新换一个
+env_schema:
+  REFRESH_MINUTES:
+    name: 刷新间隔（分钟）
+    description: 范围 10 ~ 180，每次刷新换一个主意
+    default_value: '30'
+  CUSTOM_IDEAS:
+    name: 自定义点子
+    description: 每行一个加入随机池，格式 "emoji 文案"，如 "🎮 打一局星露谷"
+    default_value: ''
+scriptings:
+- generic:
+    name: 无聊按钮
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/boredom/boredom-widget.js
+    timeout: 30
+widgets:
+- name: 无聊按钮
+  script_name: 无聊按钮

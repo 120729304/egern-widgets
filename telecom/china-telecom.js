@@ -113,9 +113,20 @@ async function fetchJson(ctx, url, cookie) {
     credentials: 'omit',
   });
   if (!resp || resp.status !== 200) {
-    throw new Error(`HTTP ${resp ? resp.status : 'no-response'}: ${url}`);
+    const err = new Error(`HTTP ${resp ? resp.status : 'no-response'}: ${url}`);
+    // 401/403 基本可以确定是登录态没了
+    if (resp && (resp.status === 401 || resp.status === 403)) err.authDead = true;
+    throw err;
   }
-  const data = await resp.json();
+  let data;
+  try {
+    data = await resp.json();
+  } catch (_) {
+    // 正常应返回 JSON，拿到 HTML（多半是被踢回登录页）→ 登录失效
+    const err = new Error(`登录失效（接口未返回 JSON）：${url}`);
+    err.authDead = true;
+    throw err;
+  }
   harvestSetCookie(ctx, resp, cookie);
   return data;
 }
@@ -236,12 +247,13 @@ async function loadData(ctx) {
 
   // 1) 优先用已捕获的 cookie（从登录后的真实请求里抓的，最可靠）
   const firstCookie = envCookie || storedCookie;
+  let cookieDead = false;
   if (firstCookie) {
     try {
       const ds = await tryCookie(ctx, firstCookie, settings);
       return { configured, ds, fromCache: false };
     } catch (e) {
-      /* cookie 失效，掉到下一步 */
+      if (e && e.authDead) cookieDead = true; // 登录失效，继续往下走
     }
   }
 
@@ -254,7 +266,7 @@ async function loadData(ctx) {
         return { configured, ds, fromCache: false };
       }
     } catch (e) {
-      /* 掉到缓存 */
+      if (e && e.authDead) cookieDead = true;
     }
   }
 
@@ -264,13 +276,13 @@ async function loadData(ctx) {
     try {
       const ds = parseTelecom(raw.detail, raw.balance, settings);
       ds.updatedAt = raw.at || ds.updatedAt;
-      return { configured, ds, fromCache: true };
+      return { configured, ds, fromCache: true, cookieDead };
     } catch (_) {
       /* 解析失败就掉到旧缓存 */
     }
   }
   const cached = ctx.storage.getJSON('ct_datasource');
-  return { configured, ds: cached || null, fromCache: !!cached };
+  return { configured, ds: cached || null, fromCache: !!cached, cookieDead };
 }
 
 /* ---------- 渲染层（Widget DSL） ---------- */
@@ -340,26 +352,30 @@ function showDirectCard(ctx, ds) {
   return !!ds.hasDirectFlow;
 }
 
-function headerRow(title, ds, fromCache) {
+function headerRow(title, ds, fromCache, cookieDead) {
   const t = ds && ds.updatedAt ? fmtTime(ds.updatedAt) : '--:--';
+  // 状态灯：绿=登录有效，红=登录失效，灰=缓存（网络问题，登录态未知）
+  const dotColor = cookieDead ? '#FF3B30' : fromCache ? '#8E8E93' : '#30D158';
   return {
     type: 'stack',
     direction: 'row',
     alignItems: 'center',
+    gap: 5,
     children: [
+      { type: 'image', src: 'sf-symbol:circle.fill', width: 8, height: 8, color: dotColor },
       { type: 'text', text: title, font: { size: 'footnote', weight: 'semibold' } },
       { type: 'spacer' },
       {
         type: 'text',
-        text: fromCache ? `缓存 ${t}` : `更新 ${t}`,
+        text: cookieDead ? '⚠️ 登录失效，点我重登' : fromCache ? `缓存 ${t}` : `更新 ${t}`,
         font: { size: 'caption2' },
-        opacity: 0.55,
+        opacity: cookieDead ? 1 : 0.55,
       },
     ],
   };
 }
 
-function buildSmall(title, ds, fromCache, ctx) {
+function buildSmall(title, ds, fromCache, ctx, cookieDead) {
   const cards3 = !showDirectCard(ctx, ds);
   const row4 = (a, b) => ({
     type: 'stack',
@@ -386,11 +402,11 @@ function buildSmall(title, ds, fromCache, ctx) {
     padding: 12,
     gap: 6,
     refreshAfter: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    children: [headerRow(title, ds, fromCache), ...body],
+    children: [headerRow(title, ds, fromCache, cookieDead), ...body],
   };
 }
 
-function buildMedium(title, ds, fromCache, ctx) {
+function buildMedium(title, ds, fromCache, ctx, cookieDead) {
 
 
   return {
@@ -399,7 +415,7 @@ function buildMedium(title, ds, fromCache, ctx) {
     gap: 8,
     refreshAfter: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
     children: [
-      headerRow(title, ds, fromCache),
+      headerRow(title, ds, fromCache, cookieDead),
       {
         type: 'stack',
         direction: 'row',
@@ -525,7 +541,7 @@ async function handleCapture(ctx) {
 
 async function handleWidget(ctx) {
   const title = (ctx.env.CT_TITLE || '中国电信').trim() || '中国电信';
-  const { configured, ds, fromCache } = await loadData(ctx);
+  const { configured, ds, fromCache, cookieDead } = await loadData(ctx);
 
   if (!configured) {
     return buildError(
@@ -535,17 +551,21 @@ async function handleWidget(ctx) {
     );
   }
   if (!ds) {
-    return buildError(title, '数据获取失败，请检查网络或重新登录');
+    return buildError(title, cookieDead ? '登录已失效，请重新登录' : '数据获取失败，请检查网络或重新登录', URLS.login);
   }
 
   const family = ctx.widgetFamily || 'systemSmall';
+  let w;
   if (family === 'systemMedium' || family === 'systemLarge' || family === 'systemExtraLarge') {
-    return buildMedium(title, ds, fromCache, ctx);
+    w = buildMedium(title, ds, fromCache, ctx, cookieDead);
+  } else if (family.startsWith('accessory')) {
+    w = buildLockScreen(title, ds, family);
+  } else {
+    w = buildSmall(title, ds, fromCache, ctx, cookieDead);
   }
-  if (family.startsWith('accessory')) {
-    return buildLockScreen(title, ds, family);
-  }
-  return buildSmall(title, ds, fromCache, ctx);
+  // cookie 失效时点小组件直接跳去登录页
+  if (cookieDead) w.url = URLS.login;
+  return w;
 }
 
 /* ---------- 入口：单文件双模式 ---------- */

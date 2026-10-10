@@ -1,5 +1,5 @@
 name: 中国电信
-description: 电信话费/流量/语音小组件（改版：语音显示独立开关，默认显示剩余语音）。原脚本 SIJULY/egern-radar，移植自 Scriptable 版 ChinaTelecom_2024（2Ya&脑瓜）
+description: 电信话费/流量/语音小组件（含每 20 分钟定时保活）。原脚本 SIJULY/egern-radar，移植自 Scriptable 版 ChinaTelecom_2024（2Ya&脑瓜）
 env_schema:
   CT_LOGIN_URL:
     name: 电信登录地址
@@ -25,11 +25,19 @@ env_schema:
     name: 小组件标题
     description: 默认 中国电信
     default_value: ''
+  CT_KEEPALIVE:
+    name: 定时保活
+    description: 每 20 分钟自动拉取一次，保持登录态不掉线；填 false 关闭
+    default_value: ''
 scriptings:
 - generic:
     name: 中国电信
-    script_url: https://raw.githubusercontent.com/120729304/egern-widgets/main/telecom/china-telecom.js
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/telecom/china-telecom.js
     timeout: 30
+- schedule:
+    name: 中国电信保活
+    cron: '*/20 * * * *'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/telecom/china-telecom.js
 widgets:
 - name: 中国电信
   script_name: 中国电信

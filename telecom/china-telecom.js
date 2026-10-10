@@ -576,5 +576,14 @@ export default async function (ctx) {
   if (ctx.request && ctx.request.url) {
     return handleCapture(ctx);
   }
+  // schedule 定时保活 → 只拉接口续 session，不渲染小组件
+  if (!ctx.widgetFamily) {
+    const keep = String(ctx.env?.CT_KEEPALIVE || '').toLowerCase();
+    if (keep === 'false' || keep === '0') return { type: 'text', text: 'keepalive disabled' };
+    try {
+      await loadData(ctx);
+    } catch (_) {}
+    return { type: 'text', text: 'keepalive done' };
+  }
   return handleWidget(ctx);
 }

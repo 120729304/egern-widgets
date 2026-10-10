@@ -1,0 +1,15 @@
+name: 每日古诗
+description: 每次刷新随机一首古诗词名句，显示诗句、作者与出处（数据源：今日诗词，免费）
+env_schema:
+  REFRESH_MINUTES:
+    name: 刷新间隔（分钟）
+    description: 范围 10 ~ 720，每次刷新换一首
+    default_value: '120'
+scriptings:
+- generic:
+    name: 每日古诗
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/poem/poem-widget.js
+    timeout: 30
+widgets:
+- name: 每日古诗
+  script_name: 每日古诗

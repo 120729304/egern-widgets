@@ -1,22 +1,61 @@
-name: Spotify 解锁
-description: 去播放广告 / 解锁 Premium（部分功能；音质超高除外）。需开启 MITM 并信任证书，建议登录后再启用，重启 Spotify 等待生效。移植自 app2smile/rules
+name: Spotify 去广告+解锁
+description: 去广告（弹窗/首页/搜索页/信息流/AI DJ/埋点上报）+ 解锁 Premium（部分功能；超高音质除外）。需开启 MITM 并信任证书，建议登录后再启用，重启 Spotify 等待生效。解锁移植自 app2smile，去广告与新版 proto 整合自 Amlabort。
 mitm:
   hostnames:
     includes:
       - spclient.wg.spotify.com
       - '*.spclient.spotify.com'
+      - aet.spotify.com
 header_rewrites:
 - delete:
     match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/user-customization-service/v1/customize$'
     name: If-None-Match
     type: request
 scriptings:
+# ---------- 会员解锁 ----------
+- http_response:
+    name: Spotify-Proto解锁
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/(bootstrap/v1/bootstrap|user-customization-service/v1/customize)$'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-proto-ev3.js
+    body_required: true
 - http_request:
     name: Spotify-URL改写
     match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/(artistview/v1/artist|album-entity-view/v2/album)/'
     script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spotify-json.js
+# ---------- 去广告：直接拦截（空 200 打发） ----------
+- http_request:
+    name: Spotify-拦截埋点上报
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/gabo-receiver-service'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-reject.js
+- http_request:
+    name: Spotify-拦截弹窗广告
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)(:443)?/pendragon'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-reject.js
+- http_request:
+    name: Spotify-拦截会员信息展示
+    match: '^https://.+-spclient\.spotify\.com(:443)?/pam-view-service/'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-reject.js
+- http_request:
+    name: Spotify-拦截AIDJ
+    match: '^https://.*37i9dQZF1EYkqdzj48dyYq'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-reject.js
+- http_request:
+    name: Spotify-拦截广告统计域名
+    match: '^https://aet\.spotify\.com/'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-reject.js
+# ---------- 去广告：清洗页面广告位 ----------
 - http_response:
-    name: Spotify-Proto解锁
-    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/(bootstrap/v1/bootstrap|user-customization-service/v1/customize)$'
-    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spotify-proto.js
+    name: Spotify-去搜索页广告
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/browsita/v./browse'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-no-search-ad.js
+    body_required: true
+- http_response:
+    name: Spotify-去首页广告
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/casita/v./home/default'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-no-home-ad.js
+    body_required: true
+- http_response:
+    name: Spotify-去信息流广告
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/scrollsita/v./scroll/spotify'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spot-no-scroll-ad.js
     body_required: true

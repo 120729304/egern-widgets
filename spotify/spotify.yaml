@@ -1,0 +1,22 @@
+name: Spotify 解锁
+description: 去播放广告 / 解锁 Premium（部分功能；音质超高除外）。需开启 MITM 并信任证书，建议登录后再启用，重启 Spotify 等待生效。移植自 app2smile/rules
+mitm:
+  hostnames:
+    includes:
+      - spclient.wg.spotify.com
+      - '*.spclient.spotify.com'
+header_rewrites:
+- delete:
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/user-customization-service/v1/customize$'
+    name: If-None-Match
+    type: request
+scriptings:
+- http_request:
+    name: Spotify-URL改写
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/(artistview/v1/artist|album-entity-view/v2/album)/'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spotify-json.js
+- http_response:
+    name: Spotify-Proto解锁
+    match: '^https://(spclient\.wg\.spotify\.com|.+-spclient\.spotify\.com)/(bootstrap/v1/bootstrap|user-customization-service/v1/customize)$'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/spotify/spotify-proto.js
+    body_required: true

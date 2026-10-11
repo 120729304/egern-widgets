@@ -29,11 +29,19 @@ env_schema:
     name: 定时保活
     description: 每 20 分钟自动拉取一次，保持登录态不掉线；填 false 关闭
     default_value: ''
+mitm:
+  hostnames:
+    includes:
+      - e.dlife.cn
 scriptings:
 - generic:
     name: 中国电信
     script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/telecom/china-telecom.js
     timeout: 30
+- http_request:
+    name: 中国电信登录捕获
+    match: '^https://e\.dlife\.cn/'
+    script_url: https://raw.githubusercontent.com/xccverse/egern-widgets/main/telecom/china-telecom.js
 - schedule:
     name: 中国电信保活
     cron: '*/20 * * * *'
